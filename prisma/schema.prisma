@@ -1,14 +1,17 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String    @id @default(cuid())
+  id        String    @id @default(cuid()) @map("_id")
   email     String    @unique
   name      String
   createdAt DateTime  @default(now())
@@ -21,13 +24,14 @@ model User {
 }
 
 model Password {
-  hash   String
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String  @id @default(cuid()) @map("_id")
+  hash        String
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Post {
-  id         String   @id @default(cuid())
+  id         String   @id @default(cuid()) @map("_id")
   title      String
   preface    String
   body       String

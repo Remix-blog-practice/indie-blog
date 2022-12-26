@@ -1,6 +1,8 @@
 import * as React from "react";
 import type { ActionArgs, LoaderArgs, MetaFunction } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
+import type { LinksFunction } from "@remix-run/node";
+
 import {
   Form,
   Link,
@@ -14,6 +16,7 @@ import { verifyLogin } from "~/models/user.server";
 import { isEmptyOrNotExist, safeRedirect, validateEmail } from "~/utils";
 
 import ROUTERS from "~/constants/routers";
+import { AuthFormLayout, AuthFormLayoutLink } from "~/components";
 
 export async function loader({ request }: LoaderArgs) {
   const userId = await getUserId(request);
@@ -79,6 +82,10 @@ export const meta: MetaFunction = () => {
   };
 };
 
+export const links: LinksFunction = () => {
+  return [...AuthFormLayoutLink()];
+};
+
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const transition = useTransition();
@@ -103,108 +110,102 @@ export default function LoginPage() {
   });
 
   return (
-    <div className="flex min-h-full flex-col justify-center">
-      <div className="mx-auto w-full max-w-md px-8">
-        <Form
-          method="post"
-          className="space-y-6"
-          aria-describedby="Login form"
-          aria-details="Login form"
+    <AuthFormLayout formName="login">
+      <Form
+        method="post"
+        className="space-y-6 text-white"
+        aria-describedby="Login form"
+        aria-details="Login form"
+      >
+        <div>
+          <label htmlFor="email" className="block">
+            Email address
+          </label>
+          <div className="mt-1">
+            <input
+              ref={emailRef}
+              id="email"
+              required
+              autoFocus={true}
+              name="email"
+              type="email"
+              autoComplete="email"
+              aria-invalid={isEmailError ? true : undefined}
+              aria-describedby="email-error"
+              className="w-full rounded border bg-white px-2 py-1 text-slate-600 dark:border-gray-200 dark:bg-slate-800 dark:text-white"
+              defaultValue="admin@admin.com"
+            />
+            {isEmailError && (
+              <div className="pt-1 text-red-400" id="email-error">
+                {actionData!.errors.email}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="password" className="block">
+            Password
+          </label>
+          <div className="mt-1">
+            <input
+              id="password"
+              ref={passwordRef}
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              aria-invalid={isPasswordError ? true : undefined}
+              aria-describedby="password-error"
+              className="w-full rounded border bg-white px-2 py-1 text-slate-600 dark:border-gray-200 dark:bg-slate-800 dark:text-white"
+              defaultValue="adminadmin"
+            />
+            {isPasswordError && (
+              <div className="pt-1 text-red-400" id="password-error">
+                {actionData!.errors.password}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <input type="hidden" name="redirectTo" value={redirectTo} />
+        <button
+          type="submit"
+          disabled={isFormSubmission}
+          aria-disabled={isFormSubmission}
+          className="inline-flex w-full items-center justify-center rounded bg-sky-700 py-2 px-4 font-bold text-white hover:bg-sky-600 focus:bg-sky-400"
         >
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Email address
-            </label>
-            <div className="mt-1">
-              <input
-                ref={emailRef}
-                id="email"
-                required
-                autoFocus={true}
-                name="email"
-                type="email"
-                autoComplete="email"
-                aria-invalid={isEmailError ? true : undefined}
-                aria-describedby="email-error"
-                className="w-full rounded border border-gray-500 px-2 py-1 text-lg"
-                defaultValue="admin@admin.com"
-              />
-              {isEmailError && (
-                <div className="pt-1 text-red-700" id="email-error">
-                  {actionData!.errors.email}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Password
-            </label>
-            <div className="mt-1">
-              <input
-                id="password"
-                ref={passwordRef}
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                aria-invalid={isPasswordError ? true : undefined}
-                aria-describedby="password-error"
-                className="w-full rounded border border-gray-500 px-2 py-1 text-lg"
-                defaultValue="adminadmin"
-              />
-              {isPasswordError && (
-                <div className="pt-1 text-red-700" id="password-error">
-                  {actionData!.errors.password}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <input type="hidden" name="redirectTo" value={redirectTo} />
-          <button
-            type="submit"
-            disabled={isFormSubmission}
-            aria-disabled={isFormSubmission}
-            className="w-full rounded bg-blue-500  py-2 px-4 text-white hover:bg-blue-600 focus:bg-blue-400"
+          {isFormSubmission ? "Logging in" : "Log in"}
+        </button>
+        <div className="flex items-center justify-between">
+          <label
+            htmlFor="remember"
+            className="flex cursor-pointer items-center"
           >
-            {isFormSubmission ? "Logging in" : "Log in"}
-          </button>
-          <div className="flex items-center justify-between">
-            <label
-              htmlFor="remember"
-              className="ml-2 flex items-center text-sm text-gray-900"
+            <input
+              id="remember"
+              name="remember"
+              type="checkbox"
+              disabled={isFormSubmission}
+              className="mr-2 h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+            />
+            {"  "}
+            Remember me
+          </label>
+          <div className="text-center">
+            Don't have an account?{" "}
+            <Link
+              title="Register"
+              className="font-bold text-sky-400 hover:underline"
+              to={{
+                pathname: ROUTERS.REGISTER,
+                search: searchParams.toString(),
+              }}
             >
-              <input
-                id="remember"
-                name="remember"
-                type="checkbox"
-                disabled={isFormSubmission}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />{" "}
-              Remember me
-            </label>
-            <div className="text-center text-sm text-gray-500">
-              Don't have an account?{" "}
-              <Link
-                className="text-blue-500 underline"
-                to={{
-                  pathname: ROUTERS.REGISTER,
-                  search: searchParams.toString(),
-                }}
-              >
-                Sign up
-              </Link>
-            </div>
+              Sign up
+            </Link>
           </div>
-        </Form>
-      </div>
-    </div>
+        </div>
+      </Form>
+    </AuthFormLayout>
   );
 }

@@ -19,7 +19,6 @@ import {
   useLoaderData,
   useTransition,
 } from "@remix-run/react";
-import stylesMarkdownPreview from "~/styles/markdown-preview.css";
 
 import type { Post } from "~/models/note.server";
 import {
@@ -30,23 +29,27 @@ import {
 } from "~/models/note.server";
 import { requireUserId } from "~/session.server";
 
-import { SwitchButton, SwitchButtonLink, TextWithMarkdown } from "~/components";
-
-import { convertUrlSlugFormat, isEmptyOrNotExist } from "~/utils";
+import {
+  SwitchButton,
+  SwitchButtonLink,
+  TextareaEditorSimple,
+  TextWithMarkdown,
+} from "~/components";
+import { links as TextWithMarkdownLinks } from "~/components/TextWithMarkdown";
+import { convertUrlSlug, convert_Vi_To_Eng, isEmptyOrNotExist } from "~/utils";
 
 import ROUTERS from "~/constants/routers";
 import { uploadImageHandler } from "~/cloudinaryUtils.server";
 
+export const handle = { hydrate: true };
+
 export const links: LinksFunction = () => {
-  return [
-    ...SwitchButtonLink(),
-    { rel: "stylesheet", href: stylesMarkdownPreview },
-  ];
+  return [...SwitchButtonLink(), ...TextWithMarkdownLinks()];
 };
 
 export const meta: MetaFunction = () => ({
   charset: "utf-8",
-  title: "Remix-Editor Notes",
+  title: "Editor",
   viewport: "width=device-width,initial-scale=1",
 });
 
@@ -158,7 +161,7 @@ export async function action({ request }: ActionArgs) {
       coverImage,
       isPublish,
       userId,
-      slug: convertUrlSlugFormat(title),
+      slug: convertUrlSlug(title, "-", convert_Vi_To_Eng),
     });
 
     return redirect(`${ROUTERS.DASHBOARD}/posts/${newPost.slug}`);
@@ -174,7 +177,7 @@ export async function action({ request }: ActionArgs) {
         body,
         coverImage,
         isPublish,
-        slug: convertUrlSlugFormat(title),
+        slug: convertUrlSlug(title, "-", convert_Vi_To_Eng),
       });
 
       return redirect(`${ROUTERS.DASHBOARD}/posts/${updatedPost.slug}`);
@@ -255,9 +258,16 @@ export default function PostEditorForm() {
     setPostCoverImage(objectUrl);
   };
 
+  const onBodyChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNotePreview((prev) => ({
+      ...prev,
+      body: e.target.value,
+    }));
+  };
+
   return (
     <>
-      <div className="flex h-full">
+      <div className="flex h-screen bg-amber-50 text-slate-700 dark:bg-slate-600 dark:text-slate-200">
         <div className="h-full flex-1 border-r-2 border-gray-400">
           <Form
             encType="multipart/form-data"
@@ -273,7 +283,7 @@ export default function PostEditorForm() {
             }}
             id="form-editor"
           >
-            <div className="w-100 flex h-8 items-center justify-between bg-slate-600 p-2 text-sm text-white">
+            <div className="w-100 flex h-8 items-center justify-between bg-slate-700 p-2 text-sm text-slate-200">
               <a
                 href={ROUTERS.DASHBOARD}
                 className="inline-flex items-center gap-1 px-1 text-sm font-semibold text-white duration-300 ease-in-out hover:scale-110 hover:underline focus:scale-110 active:scale-90"
@@ -347,7 +357,7 @@ export default function PostEditorForm() {
                   ref={titleRef}
                   name="title"
                   autoFocus
-                  className="w-full rounded-md border-2 border-gray-100 px-3 text-lg leading-loose text-black"
+                  className="w-full rounded border bg-white px-2 py-1 text-slate-600 dark:border-gray-200 dark:bg-slate-800 dark:text-white"
                   aria-invalid={isTitleError ? true : undefined}
                   aria-errormessage={isTitleError ? "title-error" : undefined}
                   onChange={(e) =>
@@ -376,21 +386,26 @@ export default function PostEditorForm() {
                 name="slug"
                 className="hidden"
                 readOnly
-                value={convertUrlSlugFormat(postPreview.title)}
+                value={convertUrlSlug(
+                  postPreview.title,
+                  "-",
+                  convert_Vi_To_Eng
+                )}
               />
               <input
                 name="id"
                 className="hidden"
                 readOnly
-                value={post?.id ?? null}
+                value={post?.id ?? ""}
               />
 
               {/* ---Preface--- */}
               <label className="text-stale flex w-full flex-col gap-1 text-sm">
                 Preface
-                <input
+                <textarea
+                  rows={3}
                   name="preface"
-                  className="w-full rounded-md border-2 border-gray-100 px-3 text-lg leading-loose text-black"
+                  className="w-full rounded border bg-white px-2 py-1 text-slate-600 dark:border-gray-200 dark:bg-slate-800 dark:text-white"
                   aria-invalid={isPrefaceError ? true : undefined}
                   aria-errormessage={
                     isPrefaceError ? "preface-error" : undefined
@@ -426,21 +441,13 @@ export default function PostEditorForm() {
                     Markdown syntax
                   </a>
                 </span>
-                <textarea
-                  ref={bodyRef}
+                <TextareaEditorSimple
+                  innerRef={bodyRef}
                   name="body"
-                  rows={15}
-                  className="w-full flex-1 rounded-md border-2 border-gray-100 py-2 px-3 text-sm leading-6 text-black"
-                  aria-invalid={isBodyError ? true : undefined}
-                  aria-errormessage={isBodyError ? "body-error" : undefined}
-                  onChange={(e) =>
-                    setNotePreview((prev) => ({
-                      ...prev,
-                      body: e.target.value,
-                    }))
-                  }
-                  required
-                  defaultValue={postBody}
+                  isRequired
+                  isError={isBodyError}
+                  onChange={onBodyChange}
+                  defaultValue={postBody || ""}
                 />
                 {isBodyError && (
                   <div className="pt-1 text-red-700" id="body-error">
@@ -452,8 +459,8 @@ export default function PostEditorForm() {
           </Form>
         </div>
         <div className="flex h-full flex-1 flex-col overflow-scroll border-l-2 border-gray-400">
-          <div className="w-100 flex h-8 items-center justify-center bg-slate-600 p-2 text-sm text-white">
-            <h2 className="">Post preview</h2>
+          <div className="w-100 flex h-8 items-center justify-center bg-slate-700 p-2 text-sm text-slate-200">
+            <h2 className="font-bold">Live Preview</h2>
           </div>
           <div className="relative mt-3 flex flex-1 flex-col px-1">
             <em className="text-stale text-sm">
@@ -471,7 +478,7 @@ export default function PostEditorForm() {
               Your preview post preface goes here
             </em>
 
-            <h3 className="my-4 border-l-2 border-slate-200 pl-2 text-lg text-slate-500">
+            <h3 className="my-4 border-l-2 border-slate-200 pl-2 text-lg">
               {postPreview.preface ? (
                 postPreview.preface
               ) : (
@@ -482,10 +489,14 @@ export default function PostEditorForm() {
               <em>Your preview post slug goes here</em>
               <input
                 readOnly
-                className="text-gray w-full rounded-md border-2 border-gray-100 px-3 text-sm italic leading-loose"
+                className="dark:text-gray w-full rounded-md border-2 border-gray-100 px-3 text-sm italic leading-loose"
                 aria-invalid={isSlugError ? true : undefined}
                 aria-errormessage={isSlugError ? "preface-error" : undefined}
-                value={convertUrlSlugFormat(postPreview.title)}
+                value={convertUrlSlug(
+                  postPreview.title,
+                  "-",
+                  convert_Vi_To_Eng
+                )}
                 disabled
               />
             </label>
@@ -507,10 +518,11 @@ export default function PostEditorForm() {
             <em className="text-stale my-3 text-sm">
               Your preview post content goes here
             </em>
-            <div className="relative h-full flex-1 rounded border-t-2 border-gray-100">
+            <div className="relative h-full flex-1 rounded border-t-2 border-gray-100 bg-orange-50 dark:bg-slate-800">
               <TextWithMarkdown
-                customClasses="flex-1 text-xs absolute"
+                customClasses="flex-1 text-xs absolute px-4 pt-5 pb-10 rounded-lg"
                 text={postPreview.body}
+                style={{ background: "inherit" }}
               />
             </div>
           </div>
@@ -526,15 +538,15 @@ export default function PostEditorForm() {
             window.addEventListener("beforeunload", function (e) {
                 const formEditorCurrentlyEntries = new FormData(document.getElementById('form-editor')).entries();
                 const formEditorDataCurrently = Array.from(formEditorCurrentlyEntries, ([x,y]) => x.toString() + y.toString()).join('');
-                
+
                 const isFormDirty = formEditorDataInitial !== formEditorDataCurrently;
                 if (!isFormDirty) {
                     return undefined;
                 }
-                
+
                 const confirmationMessage = 'It looks like you have been editing something. '
                                         + 'If you leave before saving, your changes will be lost.';
-        
+
                 (e || window.event).returnValue = confirmationMessage;
                 return confirmationMessage;
             });

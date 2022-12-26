@@ -1,24 +1,49 @@
-import type { ActionArgs, LinksFunction, LoaderArgs } from "@remix-run/node";
+import type {
+  ActionArgs,
+  LinksFunction,
+  LoaderArgs,
+  MetaFunction,
+} from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { Form, Link, useCatch, useLoaderData } from "@remix-run/react";
+import {
+  Form,
+  Link,
+  useCatch,
+  useLoaderData,
+  useTransition,
+} from "@remix-run/react";
 import invariant from "tiny-invariant";
-
-import marked from "marked";
-import sanitizeHtml from "sanitize-html";
 
 import type { Post } from "~/models/note.server";
 import { deletePostBySlug, getPostBySlug } from "~/models/note.server";
 import { requireUserId } from "~/session.server";
-import { CloudinaryImageLoader, TextWithMarkdown } from "~/components";
 import { isEmptyOrNotExist } from "~/utils";
 
-import type { User } from "~/models/user.server";
 import { getUserById } from "~/models/user.server";
 import ROUTERS from "~/constants/routers";
-import stylesMarkdowPreview from "~/styles/markdown-preview.css";
+import {
+  PostArticleContent,
+  links as PostArticleContentLinks,
+} from "~/components/PostArticleContent";
+import { PostLoadingSkeleton } from "~/components";
 
 export const links: LinksFunction = () => {
-  return [{ rel: "stylesheet", href: stylesMarkdowPreview }];
+  return [...PostArticleContentLinks()];
+};
+
+type LoaderData = { post: Post };
+
+export const meta: MetaFunction = ({ data }: { data: LoaderData }) => {
+  if (!data) {
+    return {
+      title: "No post",
+      description: "No blog found",
+    };
+  }
+  return {
+    title: `Blog: "${data.post.title}"`,
+    description: data.post.preface,
+  };
 };
 
 export async function loader({ request, params }: LoaderArgs) {
@@ -28,15 +53,11 @@ export async function loader({ request, params }: LoaderArgs) {
   const author = await getUserById(userId);
   const post = await getPostBySlug(params.slug, userId);
 
-  if (isEmptyOrNotExist(post)) {
+  if (isEmptyOrNotExist(post) || isEmptyOrNotExist(author)) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  if (isEmptyOrNotExist(author)) {
-    throw new Response("Not Found", { status: 404 });
-  }
-
-  return json({ post, author });
+  return json({ post });
 }
 
 export async function action({ request, params }: ActionArgs) {
@@ -49,75 +70,67 @@ export async function action({ request, params }: ActionArgs) {
 }
 
 export default function NoteDetailsPage() {
-  const { post, author } = useLoaderData<typeof loader>() as {
+  const { post } = useLoaderData<typeof loader>() as {
     post: Post;
-    author: User;
   };
+  const transition = useTransition();
+  const isLoading = transition.state === "loading";
 
   return (
     <div className="relative">
-      <div className="w-100 text-md sticky top-0 z-20 flex h-10 items-center justify-end gap-4 bg-slate-600 p-2 py-1 text-white">
-        <div className="flex items-center gap-4">
-          <Link to={`${ROUTERS.DASHBOARD}/formEditor-test?id=${post.id}`}>
-            Edit
-          </Link>
-          <Form method="delete">
-            <button
-              type="submit"
-              className="text-md rounded-lg bg-red-500 px-2 py-1 text-white"
-            >
-              <strong>Delete</strong>
-            </button>
-          </Form>
-        </div>
-      </div>
-      <div className="mx-auto my-12 flex min-h-screen max-w-3xl flex-col px-3 lg:px-0">
-        <article>
-          <section className="border-b pb-8">
-            <h1 className="text-4xl font-bold">{post.title}</h1>
-            <div className="my-8" />
-            <span className="flex items-center gap-x-4 font-semibold">
-              <span className="flex flex-col">
-                <span>{author.name}</span>
-                <span>
-                  {new Date(post.updatedAt)
-                    .toJSON()
-                    .slice(0, 10)
-                    .replace(/-/g, "/")}
-                </span>
-              </span>
-            </span>
-            <div className="my-4 border-l pl-2">
-              <p className="px-3 text-lg italic text-gray-400">
-                {post.preface}
-              </p>
+      {!isLoading && (
+        <div className="w-100 text-md sticky top-0 z-20 flex h-10 items-center justify-between gap-4 bg-slate-600 p-2 py-1 text-slate-200">
+          {post.isPublish ? (
+            <div>
+              <strong className="mr-2 rounded-xl border-2 border-green-500 px-3 text-green-500">
+                Published
+              </strong>
+              <Link
+                to={`/${post.slug}`}
+                className="text-lg text-sky-500 hover:underline"
+                prefetch="intent"
+              >
+                <strong>Go to post</strong>
+              </Link>
             </div>
-          </section>
+          ) : (
+            <>
+              <div className=" rounded-xl border-2 border-gray-500 px-3 dark:text-gray-500">
+                Draft
+              </div>
+            </>
+          )}
 
-          <CloudinaryImageLoader
-            alt={post.title}
-            src={post?.coverImage ?? ""}
-            options={{ fit: "contain" }}
-            responsive={[
-              {
-                size: {
-                  width: 500,
-                },
-                maxWidth: 1000,
-              },
-            ]}
-            width="1200"
-            height="675"
-            className="my-12 mx-auto rounded-md shadow-lg"
+          <div className="flex items-center gap-4">
+            <Link
+              prefetch="intent"
+              title="Edit"
+              to={`${ROUTERS.DASHBOARD}/formEditor-test?id=${post.id}`}
+            >
+              Edit
+            </Link>
+            <Form method="delete">
+              <button
+                type="submit"
+                className="text-md rounded-lg bg-red-500 px-2 py-1 text-white"
+              >
+                <strong>Delete</strong>
+              </button>
+            </Form>
+          </div>
+        </div>
+      )}
+      <div className="mx-auto my-12 flex min-h-screen max-w-6xl flex-col px-3">
+        {transition.state === "loading" ? (
+          <PostLoadingSkeleton />
+        ) : (
+          <PostArticleContent
+            {...post}
+            author={post.user}
+            createdAt={new Date(post.createdAt)}
+            updatedAt={new Date(post.updatedAt)}
           />
-          <hr className="my-4" />
-
-          <section className="py-6">
-            {/* @ts-ignore */}
-            <TextWithMarkdown text={sanitizeHtml(marked(post.body))} />
-          </section>
-          <hr className="my-4" />
-        </article>
+        )}
       </div>
     </div>
   );

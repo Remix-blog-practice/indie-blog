@@ -82,7 +82,7 @@ export async function action({ request }: ActionArgs) {
 
 export default function ProfileEdit() {
   const actionData = useActionData<typeof action>();
-  const user = useOutletContext<User>();
+  const user: User = useOutletContext<User>();
   const [avatarPreview, setAvatarPreview] = React.useState("");
 
   const isNameError = !isEmptyOrNotExist(actionData?.errors?.name);
@@ -101,7 +101,7 @@ export default function ProfileEdit() {
   return (
     <div className="h-full w-full">
       <Form method="patch" encType="multipart/form-data">
-        <div className="text-md my-2 mx-auto flex flex-col gap-4">
+        <div className="text-md mx-auto flex flex-col gap-4">
           <div className="my-2 mx-auto">
             {avatarPreview ? (
               <img
@@ -121,7 +121,7 @@ export default function ProfileEdit() {
                 responsive={[
                   {
                     size: {
-                      width: 100,
+                      width: 200,
                     },
                     maxWidth: 800,
                   },
@@ -149,7 +149,7 @@ export default function ProfileEdit() {
               name="name"
               autoFocus
               required
-              className="w-full rounded-md border-2 border-gray-100 px-3 text-lg leading-loose text-black"
+              className="w-full rounded border px-2 py-1 dark:border-gray-200 bg-white text-slate-600 dark:text-white dark:bg-slate-800"
               aria-invalid={isNameError ? true : undefined}
               aria-errormessage={isNameError ? "name-error" : undefined}
               defaultValue={user?.name || ""}
@@ -159,7 +159,7 @@ export default function ProfileEdit() {
             Bio
             <textarea
               name="bio"
-              className="w-full rounded-md border-2 border-gray-100 px-3 text-lg leading-loose text-black"
+              className="w-full rounded border px-2 py-1 dark:border-gray-200 bg-white text-slate-600 dark:text-white dark:bg-slate-800"
               rows={5}
               defaultValue={user?.bio || ""}
             />
@@ -168,7 +168,7 @@ export default function ProfileEdit() {
             Twitter
             <input
               name="twitter"
-              className="w-full rounded-md border-2 border-gray-100 px-3 text-lg leading-loose text-black"
+              className="w-full rounded border px-2 py-1 dark:border-gray-200 bg-white text-slate-600 dark:text-white dark:bg-slate-800"
               defaultValue={user?.twitter || ""}
             />
           </label>
@@ -178,12 +178,16 @@ export default function ProfileEdit() {
             </p>
           )}
           <div className="mx-auto mt-5 flex w-full items-center justify-end gap-4">
-            <Link to="../" className="hover:underline">
+            <Link
+              title="Cancel and bo back"
+              to="../"
+              className="hover:underline"
+            >
               Cancel
             </Link>
             <button
               type="submit"
-              className=" inline-flex w-auto items-center justify-center self-end rounded-md bg-green-500 p-2 px-5 text-center text-xl text-white duration-300 ease-in-out hover:scale-105 hover:bg-green-600 focus:scale-110 focus:outline-none focus:ring-green-800 active:scale-100 active:bg-green-800"
+              className="items-center inline-flex justify-center rounded bg-sky-700 py-2 px-4 font-bold text-white hover:bg-sky-600 focus:bg-sky-400"
             >
               Save
             </button>
